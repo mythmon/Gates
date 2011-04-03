@@ -6,13 +6,20 @@ console.info = console.info || function(){};
 
 TAU = Math.PI * 2;
 
+KEY_LEFT = 37;
+KEY_UP = 38;
+KEY_RIGHT = 39;
+KEY_DOWN = 40;
+KEY_X = 88;
+KEY_Z = 90;
+
 canvas = null;
 ctx = null;
 
 world = {
-    'G': 4,
-    'center_mass': 3e2,
+    'center_mass': 1e3,
     'camera': null,
+    'keys': {},
 }
 
 actors = new Array();
@@ -22,12 +29,24 @@ function init() {
     canvas = $('#canvas')
     ctx = canvas[0].getContext("2d");
 
+    window.addEventListener('keydown',
+        function(event) {
+            world.keys[event.keyCode] = true;
+        },
+        true);
+    window.addEventListener('keyup',
+        function(event) {
+            world.keys[event.keyCode] = false;
+        },
+        true);
+
     ui();
 
-    ship = new Actor(world, {'x': 600, 'y': 800, 'vx': 1.5, 'vy': -0.5});
+    ship = new Actor(world, {'x': 800, 'y': 0, 'vx': 0, 'vy': -1.5, 'mass': 30});
     ship = Ship(ship);
     actors.push(ship);
-    world['camera'] = new Camera(world, {'zoom': 0.5, 'follow': ship});
+    world['camera'] = new Camera(world, {'zoom': 0.75, 'follow': ship});
+
     for (i=0; i<100; i++) {
         p = {};
         d = Math.random()*1200 + 800;
@@ -37,6 +56,7 @@ function init() {
         p.vx = Math.random() * 6 - 3;
         p.vy = Math.random() * 6 - 3;
         p.vang = Math.random() * 0.06 - 0.03;
+        p.mass = 5;
         actors.push(Asteroid(new Actor(world, p)));
     }
 
@@ -54,6 +74,7 @@ function main_draw() {
     for (var i = 0; i < actors.length; i++) {
         actors[i].tick(timestep);
     }
+    world.camera.tick();
 
     // draw
     ctx.save();
@@ -73,11 +94,13 @@ function draw_stars() {
     ctx.fillRect(bounds.x, bounds.y, bounds.w, bounds.h);
 
     // grid
-    ctx.fillStyle = "rgb(255,255,255)";
-    grid_size = 50;
-    for(x = bounds.x - (bounds.x % grid_size); x <= bounds.x + bounds.w; x+=grid_size) {
-        for(y = bounds.y - (bounds.y % grid_size); y <= bounds.y + bounds.h; y+=grid_size) {
-            ctx.fillRect(x,y,1.5,1.5);
+    if (world.camera.zoom > 0.25) {
+        ctx.fillStyle = "rgb(255,255,255)";
+        grid_size = 100;
+        for(x = bounds.x - (bounds.x % grid_size); x <= bounds.x + bounds.w; x+=grid_size) {
+            for(y = bounds.y - (bounds.y % grid_size); y <= bounds.y + bounds.h; y+=grid_size) {
+                ctx.fillRect(x,y,2,2);
+            }
         }
     }
 
@@ -124,9 +147,11 @@ function Actor(world, params) {
     this.tick = function(t) {
         var tcv = t / this.oldt;
 
+        this.vang += this.aang;
+        this.aang = 0;
         this.ang += this.vang * t;
 
-        grav_mult = -1 * (this.mass * world.center_mass * world.G) / Math.pow(this.pos.m, 3);
+        grav_mult = -1 * (this.mass * world.center_mass) / Math.pow(this.pos.m, 3);
         grav_vec = this.pos.copy().times(grav_mult);
         this.accel = this.accel.add(grav_vec);
 
@@ -171,10 +196,19 @@ function Camera(world, params) {
     this.zoom = params.get('zoom', 1.0);
     this.follow = params.get('follow', null);
 
-    this.transform = function() {
+    this.tick = function() {
         if (this.follow) {
             this.pos = this.follow.pos;
         }
+        if (world.keys[KEY_Z]) {
+            this.zoom -= 0.01;
+        }
+        if (world.keys[KEY_X]) {
+            this.zoom += 0.01;
+        }
+    }
+
+    this.transform = function() {
         ctx.scale(this.zoom, this.zoom);
         ctx.translate(-this.pos.x, -this.pos.y);
         ctx.translate(canvas.width()/this.zoom/2, canvas.height()/this.zoom/2);
@@ -278,12 +312,40 @@ function Ship(self) {
             'points': [{'x':3,'y':5}, {'x':3,'y':0}],
         }
     }
+
+    self.parent_tick = self.tick;
+    self.tick = function(t) {
+        thrust = 0.1;
+        spin_thrust = 0.01;
+        if (world.keys[KEY_UP]) {
+            this.accel = this.accel.add(new Vector().polar(thrust, this.ang));
+            console.log('up');
+        }
+        if (world.keys[KEY_DOWN]) {
+            this.accel = this.accel.add(new Vector().polar(-thrust/2, this.ang));
+            console.log('down');
+        }
+        if (world.keys[KEY_LEFT]) {
+            this.aang -= spin_thrust;
+            console.log('left');
+        }
+        if (world.keys[KEY_RIGHT]) {
+            this.aang += spin_thrust;
+            console.log('right');
+        }
+        this.parent_tick(t);
+
+        this.vx *= 0.9;
+        this.vy *= 0.9;
+        this.vang *= 0.9;
+    }
+
     self.draw = function() {
         ctx.save();
             scale = 2.5;
             ctx.translate(this.pos.x, this.pos.y);
             ctx.scale(scale, scale);
-            ctx.rotate(this.ang);
+            ctx.rotate(this.ang + TAU/4);
 
             ctx.strokeStyle = "rgb(65,65,65)";
             ctx.lineWidth = 0.5 / scale;
@@ -291,7 +353,6 @@ function Ship(self) {
 
             for(name in self.points) {
                 part = self.points[name];
-                console.log(part['stroke']);
                 ctx.strokeStyle = part['stroke'];
                 ctx.fillStyle = part['fill'];
                 ctx.beginPath();
