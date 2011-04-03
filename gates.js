@@ -17,7 +17,8 @@ canvas = null;
 ctx = null;
 
 world = {
-    'center_mass': 1e3,
+    'sun_mass': 1e3,
+    'sun_radius': 400,
     'camera': null,
     'keys': {},
 }
@@ -42,21 +43,29 @@ function init() {
 
     ui();
 
-    ship = new Actor(world, {'x': 800, 'y': 0, 'vx': 0, 'vy': -1.5, 'mass': 30});
+    ship = new Actor(world, {'x': world.sun_radius * 3, 'y': 0, 'vx': 0, 'vy': -6, 'mass': 30});
     ship = Ship(ship);
     actors.push(ship);
     world['camera'] = new Camera(world, {'zoom': 0.75, 'follow': ship});
 
-    for (i=0; i<100; i++) {
+    // make asteroids
+    for (i=0; i<150; i++) {
         p = {};
-        d = Math.random()*1200 + 800;
+        d = Math.random() * (world.sun_radius * 2) + world.sun_radius * 5;
+        //d = world.sun_radius * 3;
         a = Math.random()*TAU;
         p.x = Math.cos(a) * d;
         p.y = Math.sin(a) * d;
-        p.vx = Math.random() * 6 - 3;
-        p.vy = Math.random() * 6 - 3;
-        p.vang = Math.random() * 0.06 - 0.03;
         p.mass = 5;
+
+        // Make the asteroids go ~in circles, at a stable speed.
+        a -= TAU / 4;
+        a += Math.random()*0.5 - 0.25;
+        v = 2.25*Math.sqrt((world.sun_mass * world.sun_mass) / ((p.mass + world.sun_mass) * d));
+        p.vx = Math.cos(a) * v;
+        p.vy = Math.sin(a) * v;
+
+        p.vang = Math.random() * 0.06 - 0.03;
         actors.push(Asteroid(new Actor(world, p)));
     }
 
@@ -106,7 +115,7 @@ function draw_stars() {
 
     // draw the sun
     ctx.fillStyle = "rgb(255,127,10)";
-    ctx.arc(0, 0, 300, 300, 0, TAU);
+    ctx.arc(0, 0, world.sun_radius, world.sun_radius, 0, TAU);
     ctx.fill()
 
 }
@@ -151,7 +160,7 @@ function Actor(world, params) {
         this.aang = 0;
         this.ang += this.vang * t;
 
-        grav_mult = -1 * (this.mass * world.center_mass) / Math.pow(this.pos.m, 3);
+        grav_mult = -1 * (this.mass * world.sun_mass) / Math.pow(this.pos.m, 3);
         grav_vec = this.pos.copy().times(grav_mult);
         this.accel = this.accel.add(grav_vec);
 
@@ -201,10 +210,10 @@ function Camera(world, params) {
             this.pos = this.follow.pos;
         }
         if (world.keys[KEY_Z]) {
-            this.zoom -= 0.01;
+            this.zoom /= 1.02;
         }
         if (world.keys[KEY_X]) {
-            this.zoom += 0.01;
+            this.zoom *= 1.02;
         }
     }
 
@@ -315,8 +324,8 @@ function Ship(self) {
 
     self.parent_tick = self.tick;
     self.tick = function(t) {
-        thrust = 0.1;
-        spin_thrust = 0.01;
+        thrust = 0.2;
+        spin_thrust = 0.015;
         if (world.keys[KEY_UP]) {
             this.accel = this.accel.add(new Vector().polar(thrust, this.ang));
             console.log('up');
