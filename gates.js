@@ -43,20 +43,20 @@ function init() {
 
     ui();
 
-    ship = new Actor(world, {'x': world.sun_radius * 3, 'y': 0, 'vx': 0, 'vy': -6, 'mass': 30});
+    ship = new Actor(world, {'x': world.sun_radius * 7, 'y': 0, 'vx': 0, 'vy': -2, 'mass': 30});
     ship = Ship(ship);
     actors.push(ship);
-    world['camera'] = new Camera(world, {'zoom': 0.75, 'follow': ship});
+    world['camera'] = new Camera(world, {'zoom': 0.5, 'follow': ship});
 
     // make asteroids
     for (i=0; i<150; i++) {
         p = {};
-        d = Math.random() * (world.sun_radius * 2) + world.sun_radius * 5;
+        d = Math.random() * (world.sun_radius * 3) + world.sun_radius * 5;
         //d = world.sun_radius * 3;
         a = Math.random()*TAU;
         p.x = Math.cos(a) * d;
         p.y = Math.sin(a) * d;
-        p.mass = 5;
+        p.mass = Math.random() + 4.5;
 
         // Make the asteroids go ~in circles, at a stable speed.
         a -= TAU / 4;
