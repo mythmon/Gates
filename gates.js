@@ -1,29 +1,25 @@
+"use strict";
 if (!window.console) console = {};
 console.log = console.log || function(){};
 console.warn = console.warn || function(){};
 console.error = console.error || function(){};
 console.info = console.info || function(){};
 
-TAU = Math.PI * 2;
+var TAU = Math.PI * 2;
 
-KEY_LEFT = 37;
-KEY_UP = 38;
-KEY_RIGHT = 39;
-KEY_DOWN = 40;
-KEY_X = 88;
-KEY_Z = 90;
+var KEY = {'left': 37, 'up': 38, 'right': 39, 'down': 40, 'x': 88, 'z': 90};
 
-canvas = null;
-ctx = null;
+var canvas = null;
+var ctx = null;
 
-world = {
+var world = {
     'sun_mass': 1e3,
     'sun_radius': 400,
     'camera': null,
     'keys': {},
 }
 
-actors = new Array();
+var actors = [];
 
 // Called when the page is ready
 function init() {
@@ -43,17 +39,16 @@ function init() {
 
     ui();
 
-    ship = new Actor(world, {'x': world.sun_radius * 7, 'y': 0, 'vx': 0, 'vy': -2, 'mass': 30});
+    var ship = new Actor(world, {'x': world.sun_radius * 7, 'y': 0, 'vx': 0, 'vy': -2, 'mass': 30});
     ship = Ship(ship);
     actors.push(ship);
     world['camera'] = new Camera(world, {'zoom': 0.5, 'follow': ship});
 
     // make asteroids
-    for (i=0; i<150; i++) {
-        p = {};
-        d = Math.random() * (world.sun_radius * 3) + world.sun_radius * 5;
-        //d = world.sun_radius * 3;
-        a = Math.random()*TAU;
+    for (var i=0; i<150; i++) {
+        var p = {};
+        var d = Math.random() * (world.sun_radius * 3) + world.sun_radius * 5;
+        var a = Math.random()*TAU;
         p.x = Math.cos(a) * d;
         p.y = Math.sin(a) * d;
         p.mass = Math.random() + 4.5;
@@ -61,7 +56,7 @@ function init() {
         // Make the asteroids go ~in circles, at a stable speed.
         a -= TAU / 4;
         a += Math.random()*0.5 - 0.25;
-        v = 2.25*Math.sqrt((world.sun_mass * world.sun_mass) / ((p.mass + world.sun_mass) * d));
+        var v = 2.25*Math.sqrt((world.sun_mass * world.sun_mass) / ((p.mass + world.sun_mass) * d));
         p.vx = Math.cos(a) * v;
         p.vy = Math.sin(a) * v;
 
@@ -76,7 +71,7 @@ $(document).ready(init);
 function ui() {
 }
 
-timestep = 1;
+var timestep = 1;
 // Main loop
 function main_draw() {
     // tick
@@ -99,15 +94,16 @@ function main_draw() {
 function draw_stars() {
     // black out
     ctx.fillStyle = "rgb(0,0,0)";
-    bounds = world.camera.get_bounds();
+    var bounds = world.camera.get_bounds();
     ctx.fillRect(bounds.x, bounds.y, bounds.w, bounds.h);
 
     // grid
     if (world.camera.zoom > 0.25) {
         ctx.fillStyle = "rgb(255,255,255)";
-        grid_size = 100;
-        for(x = bounds.x - (bounds.x % grid_size); x <= bounds.x + bounds.w; x+=grid_size) {
-            for(y = bounds.y - (bounds.y % grid_size); y <= bounds.y + bounds.h; y+=grid_size) {
+        var start_x = bounds.x - (bounds.x % world.grid_size);
+        var start_y = bounds.y - (bounds.y % world.grid_Size);
+        for(var x = start_x; x <= bounds.x + bounds.w; x+=world.grid_size) {
+            for(var y = start_y; y <= bounds.y + bounds.h; y+=world.grid_size) {
                 ctx.fillRect(x,y,2,2);
             }
         }
@@ -132,13 +128,13 @@ function _default_get(name, def) {
 function Actor(world, params) {
     params.get = _default_get;
 
-    x = params.get('x', 0);
-    vx = params.get('vx', 0);
-    ax = params.get('ax', 0);
+    var x = params.get('x', 0);
+    var vx = params.get('vx', 0);
+    var ax = params.get('ax', 0);
 
-    y = params.get('y', 0);
-    vy = params.get('vy', 0);
-    ay = params.get('ay', 0);
+    var y = params.get('y', 0);
+    var vy = params.get('vy', 0);
+    var ay = params.get('ay', 0);
 
     this.ang = params.get('ang', 0);
     this.vang = params.get('vang', 0);
@@ -160,8 +156,8 @@ function Actor(world, params) {
         this.aang = 0;
         this.ang += this.vang * t;
 
-        grav_mult = -1 * (this.mass * world.sun_mass) / Math.pow(this.pos.m, 3);
-        grav_vec = this.pos.copy().times(grav_mult);
+        var grav_mult = -1 * (this.mass * world.sun_mass) / Math.pow(this.pos.m, 3);
+        var grav_vec = this.pos.copy().times(grav_mult);
         this.accel = this.accel.add(grav_vec);
 
         var vel = this.pos.subtract(this.oldpos).times(tcv);
@@ -198,8 +194,8 @@ function Camera(world, params) {
     this.world = world;
     params.get = _default_get;
 
-    x = params.get('x', 0);
-    y = params.get('y', 0);
+    var x = params.get('x', 0);
+    var y = params.get('y', 0);
     this.pos = new Vector().xy(x,y);
     this.ang = params.get('ang', 0);
     this.zoom = params.get('zoom', 1.0);
@@ -209,10 +205,10 @@ function Camera(world, params) {
         if (this.follow) {
             this.pos = this.follow.pos;
         }
-        if (world.keys[KEY_Z]) {
+        if (world.keys[KEY.z]) {
             this.zoom /= 1.02;
         }
-        if (world.keys[KEY_X]) {
+        if (world.keys[KEY.x]) {
             this.zoom *= 1.02;
         }
     }
@@ -232,7 +228,7 @@ function Asteroid(self) {
     self.shape = make_shape();
 
     self.draw = function() {
-        scale = 20;
+        var scale = 20;
         ctx.save();
             ctx.fillStyle = "rgb(60,60,60)";
             ctx.strokeStyle = "rgb(60,60,60)";
@@ -242,7 +238,7 @@ function Asteroid(self) {
             ctx.scale(scale, scale);
             ctx.beginPath();
                 ctx.moveTo(this.shape[0].x, this.shape[0].y);
-                for (i=1; i < this.shape.length; i++) {
+                for (var i=1; i < this.shape.length; i++) {
                     ctx.lineTo(this.shape[i].x, this.shape[i].y);
                 }
             ctx.closePath();
@@ -252,12 +248,12 @@ function Asteroid(self) {
     }
 
     function make_shape() {
-        points = new Array();
-        ang = 0;
+        var points = [];
+        var ang = 0;
         do {
-            r = Math.random() * 0.6 + 0.7; // [0.7, 1.3)
-            x = Math.cos(ang) * r;
-            y = Math.sin(ang) * r;
+            var r = Math.random() * 0.6 + 0.7; // [0.7, 1.3)
+            var x = Math.cos(ang) * r;
+            var y = Math.sin(ang) * r;
 
             points.push({'x': x, 'y': y});
             ang += Math.random() * (TAU / 18) + (TAU / 18); // [TAU/18, TAU/9)
@@ -269,6 +265,9 @@ function Asteroid(self) {
 }
 
 function Ship(self) {
+    self.thrust = 0.2;
+    self.spin_thrust = 0.015;
+
     self.points = {
         'wing_l': {
             'stroke': "rgb(0,0,0)",
@@ -324,22 +323,20 @@ function Ship(self) {
 
     self.parent_tick = self.tick;
     self.tick = function(t) {
-        thrust = 0.2;
-        spin_thrust = 0.015;
-        if (world.keys[KEY_UP]) {
-            this.accel = this.accel.add(new Vector().polar(thrust, this.ang));
+        if (world.keys[KEY.up]) {
+            this.accel = this.accel.add(new Vector().polar(this.thrust, this.ang));
             console.log('up');
         }
-        if (world.keys[KEY_DOWN]) {
-            this.accel = this.accel.add(new Vector().polar(-thrust/2, this.ang));
+        if (world.keys[KEY.down]) {
+            this.accel = this.accel.add(new Vector().polar(-this.thrust/2, this.ang));
             console.log('down');
         }
-        if (world.keys[KEY_LEFT]) {
-            this.aang -= spin_thrust;
+        if (world.keys[KEY.left]) {
+            this.aang -= this.spin_thrust;
             console.log('left');
         }
-        if (world.keys[KEY_RIGHT]) {
-            this.aang += spin_thrust;
+        if (world.keys[KEY.right]) {
+            this.aang += this.spin_thrust;
             console.log('right');
         }
         this.parent_tick(t);
@@ -351,7 +348,7 @@ function Ship(self) {
 
     self.draw = function() {
         ctx.save();
-            scale = 2.5;
+            var scale = 2.5;
             ctx.translate(this.pos.x, this.pos.y);
             ctx.scale(scale, scale);
             ctx.rotate(this.ang + TAU/4);
@@ -360,13 +357,13 @@ function Ship(self) {
             ctx.lineWidth = 0.5 / scale;
             ctx.fillStyle = "rgb(190,190,190)";
 
-            for(name in self.points) {
-                part = self.points[name];
+            for(var name in self.points) {
+                var part = self.points[name];
                 ctx.strokeStyle = part['stroke'];
                 ctx.fillStyle = part['fill'];
                 ctx.beginPath();
                     ctx.moveTo(part.points[0].x, part.points[0].y);
-                    for(i=1; i<part.points.length; i++) {
+                    for(var i=1; i<part.points.length; i++) {
                         ctx.lineTo(part.points[i].x, part.points[i].y);
                     }
                 ctx.closePath();
@@ -443,7 +440,7 @@ function Vector() {
     }
 
     this.copy = function() {
-        v = new Vector();
+        var v = new Vector();
         v.x = this.x;
         v.y = this.y;
         v.a = this.a;
