@@ -5,6 +5,16 @@ console.warn = console.warn || function(){};
 console.error = console.error || function(){};
 console.info = console.info || function(){};
 
+String.prototype.format = function() {
+  var args = arguments;
+  return this.replace(/{(\d+)}/g, function(match, number) { 
+    return typeof args[number] != 'undefined'
+      ? args[number]
+      : '{' + number + '}'
+    ;
+  });
+};
+
 var TAU = Math.PI * 2;
 
 var KEY = {'left': 37, 'up': 38, 'right': 39, 'down': 40, 'x': 88, 'z': 90};
@@ -17,6 +27,7 @@ var world = {
     'sun_radius': 400,
     'camera': null,
     'keys': {},
+    'grid_size': 100,
 }
 
 var actors = [];
@@ -37,12 +48,10 @@ function init() {
         },
         true);
 
-    ui();
-
-    var ship = new Actor(world, {'x': world.sun_radius * 7, 'y': 0, 'vx': 0, 'vy': -2, 'mass': 30});
-    ship = Ship(ship);
-    actors.push(ship);
-    world['camera'] = new Camera(world, {'zoom': 0.5, 'follow': ship});
+    world.ship = new Actor(world, {'x': world.sun_radius * 7, 'y': 0, 'vx': 0, 'vy': -2, 'mass': 30});
+    world.ship = Ship(world.ship);
+    actors.push(world.ship);
+    world['camera'] = new Camera(world, {'zoom': 0.5, 'follow': world.ship});
 
     // make asteroids
     for (var i=0; i<150; i++) {
@@ -69,6 +78,27 @@ function init() {
 $(document).ready(init);
 
 function ui() {
+    var border = [[30, 10], [canvas.width()-30, 10],
+            [canvas.width()-10, 30], [canvas.width()-10, canvas.height()-30],
+            [canvas.width()-30, canvas.height()-10], [30, canvas.height()-10],
+            [10, canvas.height()-30],  [10, 30]];
+
+    ctx.strokeStyle = "rgba(0,255,0,127)";
+    ctx.fillStyle = "rgba(0,255,0,127)";
+
+    ctx.beginPath();
+        ctx.moveTo(border[0][0], border[0][1]);
+        for (var i=1; i<border.length; i++) {
+            ctx.lineTo(border[i][0], border[i][1]);
+        }
+    ctx.closePath();
+    ctx.stroke();
+
+    var v = world.ship.vel;
+    ctx.fillText("Velocity:", 30, 30);
+    ctx.fillText(world.ship.vel.m.toFixed(2), 80, 30);
+    ctx.fillText("Distance:", 30, 40);
+    ctx.fillText(world.ship.pos.m.toFixed(2), 80, 40);
 }
 
 var timestep = 1;
@@ -88,6 +118,9 @@ function main_draw() {
         actors[i].draw();
     }
     ctx.restore();
+
+    ui();
+
     return true;
 }
 
@@ -101,7 +134,7 @@ function draw_stars() {
     if (world.camera.zoom > 0.25) {
         ctx.fillStyle = "rgb(255,255,255)";
         var start_x = bounds.x - (bounds.x % world.grid_size);
-        var start_y = bounds.y - (bounds.y % world.grid_Size);
+        var start_y = bounds.y - (bounds.y % world.grid_size);
         for(var x = start_x; x <= bounds.x + bounds.w; x+=world.grid_size) {
             for(var y = start_y; y <= bounds.y + bounds.h; y+=world.grid_size) {
                 ctx.fillRect(x,y,2,2);
@@ -111,9 +144,10 @@ function draw_stars() {
 
     // draw the sun
     ctx.fillStyle = "rgb(255,127,10)";
-    ctx.arc(0, 0, world.sun_radius, world.sun_radius, 0, TAU);
+    ctx.beginPath();
+        ctx.arc(0, 0, world.sun_radius, world.sun_radius, 0, TAU);
+    ctx.closePath();
     ctx.fill()
-
 }
 
 function _default_get(name, def) {
@@ -160,12 +194,12 @@ function Actor(world, params) {
         var grav_vec = this.pos.copy().times(grav_mult);
         this.accel = this.accel.add(grav_vec);
 
-        var vel = this.pos.subtract(this.oldpos).times(tcv);
+        var vel = this.vel.times(t);
         var tSq = t*t;
         if (t < 0) {
             tSq = -tSq;
         }
-        var newpos = this.pos.add(vel).add(this.accel.times(tSq));
+        var newpos = this.pos.add(this.vel).add(this.accel.times(tSq));
 
         this.oldpos = this.pos;
         this.pos = newpos;
@@ -188,6 +222,10 @@ function Actor(world, params) {
             ctx.fill();
         ctx.restore();
     }
+
+    this.__defineGetter__('vel', function() {
+        return this.pos.subtract(this.oldpos);
+    });
 }
 
 function Camera(world, params) {
@@ -436,7 +474,7 @@ function Vector() {
     }
 
     this.toString = function() {
-        return "(" + this.x + ", " + this.y + ")";
+        return "({0}, {1})".format(this.x.toFixed(2), this.y.toFixed(2));
     }
 
     this.copy = function() {
